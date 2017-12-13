@@ -1,0 +1,8 @@
+numpy
+pandas
+tensorflow
+keras
+gym
+gym-pull
+pyglet
+h5py
