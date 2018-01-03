@@ -5,7 +5,6 @@
 #   https://github.com/GaetanJUVIN/Deep_QLearning_CartPole
 #   https://www.youtube.com/redirect?v=79pmNdyxEGo&event=video_description&q=https%3A%2F%2Fgithub.com%2FllSourcell%2Fdeep_q_learning&redir_token=hVoT7lQUssUy2C-kPgTvax0N-j18MTUxMzE4MTE5NUAxNTEzMDk0Nzk1
 
-
 import gym
 import random
 import numpy as np
@@ -55,7 +54,7 @@ def preprocess(observation):
 
 def buildBatch(D,batch_size):
     batch_type="Full"
-    if batch_type=="Full":
+    if batch_type=="Full": #Use all the data
         return D,len(D)
     if batch_type=="Every4":
         batch=[]#Every 4th frame gets added.
@@ -63,7 +62,7 @@ def buildBatch(D,batch_size):
             if i%4==0:
                 batch.append(D[i])  
         return batch,len(batch)
-    return random.sample(D, batch_size),batch_size#If all else, just give a random group
+    return random.sample(D, batch_size),batch_size#If all else, just get a random batch to learn
 
 def buildGame(gameName):
         env = gym.make(gameName)
@@ -78,13 +77,6 @@ def buildConvModel(state_size,action_size,learning_rate):
     model.add(Conv2D(32, (5, 5), activation='relu', input_shape=state_size))
     model.add(Conv2D(32, (5, 5), activation='relu'))
     model.add(MaxPooling2D(pool_size=(5, 5)))
-    #model.add(Dropout(0.1))
-    
-#    model.add(Conv2D(64, (3, 3), activation='relu'))
-#    model.add(Conv2D(64, (3, 3), activation='relu'))
-#    model.add(MaxPooling2D(pool_size=(2, 2)))
-#    model.add(Dropout(0.25))
-    
     model.add(Flatten())
     model.add(Dense(20, activation='relu'))
     #model.add(Dropout(0.1))
@@ -124,10 +116,8 @@ def trainModel(model,batch,gamma):
         rewards=model.predict(observation)
         future_rewards=model.predict(newObs)
         rewards[0,action]=reward #In this example, the result of this action was reward
-#        print "rewards",rewards  
         if done!=False:
             rewards[0,action]+= gamma*np.amax(future_rewards)#Add in future rew
-#        print "rewards 2",rewards    
         model.fit(observation,rewards,epochs=1,verbose=0)
     return model
 
@@ -146,15 +136,14 @@ def learn(env,nEpisodes,epsilon,gamma,model,batch_size):
             if np.random.rand() <= epsilon:
                 action = np.random.randint(0, env.action_space.n, size=1)[0]
             else:
-                #print "Prediction",np.shape(observation)
                 obs=np.expand_dims(observation,axis=0)
-                Q = model.predict(obs)
-                action = np.argmax(Q)
-            newObs, reward, done, info = env.step(action)
+                Q = model.predict(obs) # Predict current reward for this observation
+                action = np.argmax(Q) # Pick action that has best possible reward
+            newObs, reward, done, info = env.step(action) #Step the game forward, record new observation
             newObs=preprocess(newObs)
             D.append((observation, action, reward, newObs, done))         # Add to Memory
             observation = newObs        # Update state
-            tot_reward += reward
+            tot_reward += reward #Add to reward
         fear=False
         if fear:
             D=fearDeath(D,precogFrames=10)
@@ -169,10 +158,11 @@ def learn(env,nEpisodes,epsilon,gamma,model,batch_size):
                 model=trainModel(model,batch,gamma)
         if epsilon > 0.1/0.995: #Decay random actions
             epsilon*=0.9995 
-    model.save("SpaceInvaders_model_noFEAR.h5") 
+    model.save("SpaceInvaders_model_noFEAR.h5") #Save Final Model
     return model       
         
 def play(model,env):
+    #Watch your model play.
     observation=env.reset()
     done = False
     tot_reward = 0.0
@@ -188,6 +178,7 @@ def play(model,env):
     print('Game ended! Total reward: {}'.format(tot_reward))
     
 def play100(model,env):
+    #What is the average score of 100 games for this model?
     scores=[]
     for i in range(100):
         observation=env.reset()
@@ -220,12 +211,5 @@ else:
     MASTERMIND=buildDeeperConvModel(nObs,nAction)
 MASTERMIND=learn(env,nEpisodes,epsilon,gamma,MASTERMIND,batch_size)
 play(MASTERMIND,env)
-
-#"SpaceInvaders_model_450_inARow.h5" Makes some movements
-    #Death Fears
-# SpaceInvaders_model_700_CPU got 189+115.
-#SpaceInvaders_model_FINAL_CPU got 180+150
-#SpaceInvaders_model_350_fearDeath 130.65 +/- 6.80643078272
-#SpaceInvaders_model_600_fearDeath 12 +/- 30.
 
 
